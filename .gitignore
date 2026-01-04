@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Database
+*.sqlite3
+
+# Coverage
+.coverage
+htmlcov/
+coverage/
+
+# Poetry
+poetry.lock
