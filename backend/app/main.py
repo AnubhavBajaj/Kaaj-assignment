@@ -1,68 +1,50 @@
-"""FastAPI application entry point for the loan underwriting platform."""
-
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-
-from app.database import engine, Base
-from app.api import router as api_router
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan handler for startup and shutdown events."""
-    # Startup: Try to create database tables (for development only)
-    try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        print("✅ Database connected successfully")
-    except Exception as e:
-        print(f"⚠️  Database connection failed: {e}")
-        print("   The API will start, but database operations will fail.")
-        print("   Start PostgreSQL with: docker compose up -d db")
-    yield
-    # Shutdown: Dispose of the engine
-    try:
-        await engine.dispose()
-    except Exception:
-        pass
-
+from app.api import applications, lenders, underwriting
 
 app = FastAPI(
-    title="Loan Underwriting Platform",
-    description="API for loan application processing and underwriting",
-    version="0.1.0",
-    lifespan=lifespan,
+    title="Loan Underwriting Platform API",
+    description="API for managing loan applications, lender policies, and underwriting.",
+    version="1.0.0"
 )
 
-# Configure CORS
+# CORS Configuration
+origins = [
+    "http://localhost:3000",
+    "http://localhost:5173", # Vite default
+    "*" # For development convenience
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://frontend:5173",
-    ],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include API routes
-app.include_router(api_router, prefix="/api/v1")
+# Exception Handlers
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal Server Error", "details": str(exc)},
+    )
 
+from fastapi.exceptions import RequestValidationError
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={"error": "Validation Error", "details": exc.errors()},
+    )
+
+# Include Routers
+app.include_router(applications.router, prefix="/api")
+app.include_router(lenders.router, prefix="/api")
+app.include_router(underwriting.router, prefix="/api")
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy", "service": "loan-underwriting-backend"}
-
-
-@app.get("/")
-async def root():
-    """Root endpoint with API information."""
-    return {
-        "message": "Loan Underwriting Platform API",
-        "docs": "/docs",
-        "health": "/health",
-    }
+    return {"status": "ok"}
